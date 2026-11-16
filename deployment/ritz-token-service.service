@@ -1,0 +1,26 @@
+[Unit]
+Description=Ritz Token Ledger Microservice
+After=syslog.target network.target postgresql.service
+
+[Service]
+Type=simple
+User=ritz
+Group=ritz
+WorkingDirectory=/opt/ritz-token-service
+ExecStart=/usr/bin/java -Xms256m -Xmx512m -XX:+UseG1GC -jar /opt/ritz-token-service/ritz-token-service.jar
+SuccessExitStatus=143
+Restart=always
+RestartSec=10
+StandardOutput=syslog
+StandardError=syslog
+SyslogIdentifier=ritz-token-service
+
+# Environment variables
+Environment="SERVER_PORT=8085"
+Environment="DB_URL=jdbc:postgresql://localhost:5432/ritz_token_db"
+Environment="DB_USERNAME=ritz_admin"
+Environment="DB_PASSWORD=YourSecurePasswordHere"
+Environment="RITZ_API_KEY=YourSuperSecretRitzApiKey2026"
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,38 @@
+services:
+  ritz-postgres:
+    image: postgres:16-alpine
+    container_name: ritz-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ritz_token_db
+      POSTGRES_USER: ritz_admin
+      POSTGRES_PASSWORD: RitzSecurePassword2026
+    ports:
+      - "5433:5432"
+    volumes:
+      - ritz_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ritz_admin -d ritz_token_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  ritz-service:
+    build: .
+    container_name: ritz-token-service
+    restart: unless-stopped
+    depends_on:
+      ritz-postgres:
+        condition: service_healthy
+    ports:
+      - "8085:8085"
+    environment:
+      SERVER_PORT: 8085
+      DB_URL: jdbc:postgresql://ritz-postgres:5432/ritz_token_db
+      DB_USERNAME: ritz_admin
+      DB_PASSWORD: RitzSecurePassword2026
+      RITZ_API_KEY: ritz-secret-api-key-2026
+      JAVA_OPTS: "-Xms256m -Xmx512m -XX:+UseG1GC"
+
+volumes:
+  ritz_pgdata:
