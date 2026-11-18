@@ -1,26 +1,31 @@
 [Unit]
 Description=Ritz Token Ledger Microservice
 After=syslog.target network.target postgresql.service
+Wants=postgresql.service
 
 [Service]
 Type=simple
 User=ritz
 Group=ritz
-WorkingDirectory=/opt/ritz-token-service
-ExecStart=/usr/bin/java -Xms256m -Xmx512m -XX:+UseG1GC -jar /opt/ritz-token-service/ritz-token-service.jar
+WorkingDirectory=/home/ritz/ritz-token-service
+ExecStart=/usr/bin/java -Xms256m -Xmx512m -XX:+UseG1GC -jar /home/ritz/ritz-token-service/target/ritz-token-service-1.0.0.jar
 SuccessExitStatus=143
 Restart=always
 RestartSec=10
-StandardOutput=syslog
-StandardError=syslog
+StandardOutput=journal
+StandardError=journal
 SyslogIdentifier=ritz-token-service
 
 # Environment variables
 Environment="SERVER_PORT=8085"
 Environment="DB_URL=jdbc:postgresql://localhost:5432/ritz_token_db"
 Environment="DB_USERNAME=ritz_admin"
-Environment="DB_PASSWORD=YourSecurePasswordHere"
-Environment="RITZ_API_KEY=YourSuperSecretRitzApiKey2026"
+Environment="DB_PASSWORD=RitzSecurePassword2026"
+Environment="RITZ_API_KEY=ritz-secret-api-key-2026"
+Environment="RAZORPAY_ENABLED=true"
+Environment="RAZORPAY_KEY_ID=rzp_live_TqsjLUjcERj9ar"
+Environment="RAZORPAY_KEY_SECRET=YCcqHG6AIkLB1upNH3Pbcxkv"
+Environment="RAZORPAY_WEBHOOK_SECRET=YCcqHG6AIkLB1upNH3Pbcxkv"
 
 [Install]
 WantedBy=multi-user.target

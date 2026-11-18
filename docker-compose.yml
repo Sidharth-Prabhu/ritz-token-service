@@ -1,38 +1,125 @@
 services:
+  # ==========================================
+  # MySQL 8 Database Service (Production Target)
+  # ==========================================
+  ritz-mysql:
+    image: mysql:8.4
+    container_name: ritz-mysql
+    restart: unless-stopped
+    command: --default-authentication-plugin=mysql_native_password --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci
+    environment:
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:-RootSecurePass2026!}
+      MYSQL_DATABASE: ${DB_NAME:-ritz_wallet}
+      MYSQL_USER: ${DB_USERNAME:-ritz_user}
+      MYSQL_PASSWORD: ${DB_PASSWORD:-RitzWalletPass2026!}
+    ports:
+      - "3306:3306"
+    volumes:
+      - ritz_mysqldata:/var/lib/mysql
+      - ./src/main/resources/schema-mysql.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "${DB_USERNAME:-ritz_user}", "-p${DB_PASSWORD:-RitzWalletPass2026!}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    networks:
+      - ritz-network
+
+  # ==========================================
+  # Alternative: PostgreSQL Service
+  # (Activate if deploying on PostgreSQL infrastructure)
+  # ==========================================
   ritz-postgres:
     image: postgres:16-alpine
     container_name: ritz-postgres
     restart: unless-stopped
+    profiles: ["postgres"]
     environment:
-      POSTGRES_DB: ritz_token_db
-      POSTGRES_USER: ritz_admin
-      POSTGRES_PASSWORD: RitzSecurePassword2026
+      POSTGRES_DB: ${PG_DB_NAME:-ritz_token_db}
+      POSTGRES_USER: ${PG_DB_USER:-ritz_admin}
+      POSTGRES_PASSWORD: ${PG_DB_PASS:-RitzSecurePassword2026}
     ports:
-      - "5433:5432"
+      - "5432:5432"
     volumes:
       - ritz_pgdata:/var/lib/postgresql/data
+      - ./src/main/resources/schema-postgresql.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ritz_admin -d ritz_token_db"]
+      test: ["CMD-SHELL", "pg_isready -U ${PG_DB_USER:-ritz_admin} -d ${PG_DB_NAME:-ritz_token_db}"]
       interval: 5s
       timeout: 5s
       retries: 5
+    networks:
+      - ritz-network
 
-  ritz-service:
-    build: .
-    container_name: ritz-token-service
+  # ==========================================
+  # RITZ Wallet Backend (Spring Boot 3 + Java 17)
+  # ==========================================
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: ritz-backend
     restart: unless-stopped
     depends_on:
-      ritz-postgres:
+      ritz-mysql:
         condition: service_healthy
     ports:
       - "8085:8085"
     environment:
       SERVER_PORT: 8085
-      DB_URL: jdbc:postgresql://ritz-postgres:5432/ritz_token_db
-      DB_USERNAME: ritz_admin
-      DB_PASSWORD: RitzSecurePassword2026
-      RITZ_API_KEY: ritz-secret-api-key-2026
+      SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-mysql}
+      DB_URL: jdbc:mysql://ritz-mysql:3306/${DB_NAME:-ritz_wallet}?createDatabaseIfNotExist=true&useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=Asia/Kolkata
+      DB_USERNAME: ${DB_USERNAME:-ritz_user}
+      DB_PASSWORD: ${DB_PASSWORD:-RitzWalletPass2026!}
+      JWT_SECRET: ${JWT_SECRET:-RITZWalletSecureJwtTokenSigningSecretKeyWithMin256BitsLength2026!}
+      JWT_EXPIRATION_HOURS: ${JWT_EXPIRATION_HOURS:-24}
+      TOKEN_EXCHANGE_RATE: ${TOKEN_EXCHANGE_RATE:-1.0}
+      PAYMENT_RAZORPAY_ENABLED: ${PAYMENT_RAZORPAY_ENABLED:-false}
+      RAZORPAY_KEY_ID: ${RAZORPAY_KEY_ID:-rzp_test_placeholder_key}
+      RAZORPAY_KEY_SECRET: ${RAZORPAY_KEY_SECRET:-rzp_test_placeholder_secret}
+      RAZORPAY_WEBHOOK_SECRET: ${RAZORPAY_WEBHOOK_SECRET:-rzp_webhook_secret_key_2026}
+      RITZ_API_KEY: ${RITZ_API_KEY:-ritz-secret-api-key-2026}
+      CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:-http://localhost:3000,http://localhost:80,http://localhost:8085}
       JAVA_OPTS: "-Xms256m -Xmx512m -XX:+UseG1GC"
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:8085/actuator/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 25s
+    networks:
+      - ritz-network
+
+  # ==========================================
+  # Nginx Reverse Proxy & Load Balancer
+  # ==========================================
+  nginx:
+    image: nginx:1.27-alpine
+    container_name: ritz-nginx
+    restart: unless-stopped
+    depends_on:
+      backend:
+        condition: service_healthy
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./deployment/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./frontend/dist:/usr/share/nginx/html:ro
+      - certbot_etc:/etc/letsencrypt:ro
+      - certbot_var:/var/lib/letsencrypt:ro
+      - certbot_www:/var/www/certbot:ro
+    networks:
+      - ritz-network
+
+networks:
+  ritz-network:
+    driver: bridge
 
 volumes:
+  ritz_mysqldata:
   ritz_pgdata:
+  certbot_etc:
+  certbot_var:
+  certbot_www:

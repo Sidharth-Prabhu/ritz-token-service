@@ -1,0 +1,28 @@
+# ==============================================================================
+# Cloudflare Tunnel Configuration (Zero Trust / Argo Tunnel)
+# Ideal for College / Campus networks where inbound ports 80/443 are blocked
+# ==============================================================================
+# 1. Download cloudflared:
+#    curl -L --output cloudflared.deb https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64.deb
+#    sudo dpkg -i cloudflared.deb
+#
+# 2. Login & Create Tunnel:
+#    cloudflared tunnel login
+#    cloudflared tunnel create ritz-wallet-tunnel
+#
+# 3. Associate DNS Route in Cloudflare:
+#    cloudflared tunnel route dns ritz-wallet-tunnel ritz.rit-services.in
+#
+# 4. Copy this file to ~/.cloudflared/config.yml (replace TUNNEL_ID and credentials path):
+# ==============================================================================
+
+tunnel: YOUR_TUNNEL_UUID_HERE
+credentials-file: /root/.cloudflared/YOUR_TUNNEL_UUID_HERE.json
+
+ingress:
+  - hostname: ritz.rit-services.in
+    service: http://127.0.0.1:8085
+    originRequest:
+      noTLSVerify: true
+      connectTimeout: 10s
+  - service: http_status:404
