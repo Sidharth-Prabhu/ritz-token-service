@@ -130,6 +130,9 @@ public class AdminService {
                 map.put("student_name", s.getName());
                 map.put("mobile_number", s.getMobileNumber());
             });
+            if (!map.containsKey("mobile_number") && w.getStudentId() != null && w.getStudentId().matches("^STU\\d{10}$")) {
+                map.put("mobile_number", w.getStudentId().substring(3));
+            }
             topWalletsData.add(map);
         }
         stats.setTopWallets(topWalletsData);
@@ -356,7 +359,7 @@ public class AdminService {
                     s.getStudentId(),
                     s.getName(),
                     s.getMobileNumber(),
-                    s.getEmail(),
+                    null, // Do not expose dummy emails
                     s.getDepartment(),
                     bal,
                     status
@@ -402,8 +405,11 @@ public class AdminService {
 
             String studentId = u.getStudentId() != null ? u.getStudentId() : (s != null ? s.getStudentId() : null);
             String fullName = (u.getFullName() != null && !u.getFullName().isBlank()) ? u.getFullName() : (s != null ? s.getName() : u.getUsername());
-            String mobile = s != null ? s.getMobileNumber() : (u.getUsername() != null && u.getUsername().matches("^\\d{10}$") ? u.getUsername() : null);
+            String mobile = s != null ? s.getMobileNumber() : (u.getUsername() != null && u.getUsername().matches("^\\d{10}$") ? u.getUsername() : (studentId != null && studentId.matches("^STU\\d{10}$") ? studentId.substring(3) : null));
             String email = u.getEmail() != null ? u.getEmail() : (s != null ? s.getEmail() : null);
+            if (email != null && (email.contains("@campus.rit.edu.in") || email.matches("^\\d{10}@.*"))) {
+                email = null; // Strip generated dummy email
+            }
             String roleStr = u.getRole() != null ? u.getRole().name() : "STUDENT";
 
             Wallet w = studentId != null ? walletByStudentId.get(studentId) : null;
@@ -432,6 +438,10 @@ public class AdminService {
                 String walletId = w != null ? w.getWalletId() : null;
                 Long balance = w != null ? w.getBalanceMinorUnits() : 0L;
                 String walletStatus = w != null ? w.getStatus().name() : "ACTIVE";
+                String email = s.getEmail();
+                if (email != null && (email.contains("@campus.rit.edu.in") || email.matches("^\\d{10}@.*"))) {
+                    email = null;
+                }
 
                 dtos.add(new AdminUserDto(
                         null,
@@ -439,7 +449,7 @@ public class AdminService {
                         s.getStudentId(),
                         s.getName(),
                         s.getMobileNumber(),
-                        s.getEmail(),
+                        email,
                         "STUDENT",
                         walletId,
                         balance,
