@@ -28,4 +28,7 @@ public interface WalletRepository extends JpaRepository<Wallet, Long> {
     Long getTotalCirculationMinorUnits();
 
     long countByStatus(WalletStatus status);
+
+    @Query("SELECT w FROM Wallet w ORDER BY w.balanceMinorUnits DESC")
+    java.util.List<Wallet> findTopWalletsByBalance(org.springframework.data.domain.Pageable pageable);
 }

@@ -185,39 +185,6 @@ public class DataInitializer implements CommandLineRunner {
             log.info("Registered application: CAMPUS_ERP");
         }
 
-        // 5. Sample Student & Initial Wallet Balance (matches prompt test case: RIT2026001, initial balance 600)
-        if (!userRepository.existsByUsername("RIT2026001")) {
-            User studentUser = new User("RIT2026001", passwordEncoder.encode("StudentPass2026!"), "Aditya Sharma", "rit2026001@ritchennai.edu.in", Role.STUDENT);
-            studentUser.setStudentId("RIT2026001");
-            userRepository.save(studentUser);
-
-            Wallet wallet = walletService.createStudentAndWallet(
-                    "RIT2026001",
-                    "Aditya Sharma",
-                    "rit2026001@ritchennai.edu.in",
-                    "9876543210",
-                    "Computer Science & Engineering",
-                    2026
-            );
-
-            // Seed initial wallet balance of 600 tokens with balanced double-entry
-            // DEBIT: ASSET-SANDBOX-CLEARING 600
-            // CREDIT: LIAB-WLT-RIT2026001 600
-            long initialBalance = 600L;
-            wallet.credit(initialBalance);
-            walletRepository.save(wallet);
-
-            ledgerService.recordDoubleEntry(
-                    "RZTXN-INIT-100001",
-                    "ASSET-SANDBOX-CLEARING",
-                    "LIAB-WLT-RIT2026001",
-                    initialBalance,
-                    "Initial student wallet seed balance"
-            );
-
-            log.info("Created test student RIT2026001 with wallet balance 600 RITZ tokens");
-        }
-
         log.info("RITZ Wallet ecosystem initialization completed successfully.");
     }
 }

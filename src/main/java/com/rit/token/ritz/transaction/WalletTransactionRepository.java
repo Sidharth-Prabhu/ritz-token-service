@@ -30,6 +30,34 @@ public interface WalletTransactionRepository extends JpaRepository<WalletTransac
 
     Page<WalletTransaction> findAllByOrderByCreatedAtDesc(Pageable pageable);
 
+    @Query("SELECT t FROM WalletTransaction t WHERE " +
+           "(:type IS NULL OR t.transactionType = :type) AND " +
+           "(:status IS NULL OR t.status = :status) AND " +
+           "(:search IS NULL OR :search = '' OR " +
+           "LOWER(t.studentId) LIKE LOWER(CONCAT('%', :search, '%')) OR " +
+           "LOWER(t.transactionId) LIKE LOWER(CONCAT('%', :search, '%')) OR " +
+           "LOWER(t.referenceId) LIKE LOWER(CONCAT('%', :search, '%')) OR " +
+           "LOWER(t.merchantId) LIKE LOWER(CONCAT('%', :search, '%')) OR " +
+           "LOWER(t.description) LIKE LOWER(CONCAT('%', :search, '%'))) " +
+           "ORDER BY t.createdAt DESC")
+    Page<WalletTransaction> findFiltered(
+            @Param("type") TransactionType type,
+            @Param("status") TransactionStatus status,
+            @Param("search") String search,
+            Pageable pageable);
+
+    @Query("SELECT COALESCE(SUM(t.amountMinorUnits), 0) FROM WalletTransaction t WHERE t.status = 'COMPLETED' AND t.createdAt >= :since")
+    Long getTotalVolumeSince(@Param("since") LocalDateTime since);
+
+    @Query("SELECT COALESCE(SUM(t.amountMinorUnits), 0) FROM WalletTransaction t WHERE t.transactionType IN ('RECHARGE', 'CREDIT') AND t.status = 'COMPLETED'")
+    Long getTotalIssuedVolume();
+
+    @Query("SELECT COALESCE(SUM(t.amountMinorUnits), 0) FROM WalletTransaction t WHERE t.transactionType IN ('RECHARGE', 'CREDIT') AND t.status = 'COMPLETED' AND t.createdAt >= :since")
+    Long getIssuedVolumeSince(@Param("since") LocalDateTime since);
+
+    @Query("SELECT COALESCE(SUM(t.amountMinorUnits), 0) FROM WalletTransaction t WHERE t.transactionType = 'REFUND' AND t.status = 'COMPLETED'")
+    Long getTotalRefundVolume();
+
     @Query("SELECT COUNT(t) FROM WalletTransaction t WHERE t.status = :status")
     long countByStatus(@Param("status") TransactionStatus status);
 

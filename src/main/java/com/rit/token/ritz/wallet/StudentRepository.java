@@ -13,4 +13,10 @@ public interface StudentRepository extends JpaRepository<Student, Long> {
     boolean existsByStudentId(String studentId);
     boolean existsByEmail(String email);
     boolean existsByMobileNumber(String mobileNumber);
+
+    @org.springframework.data.jpa.repository.Query("SELECT s FROM Student s WHERE " +
+           "LOWER(s.studentId) LIKE LOWER(CONCAT('%', :q, '%')) OR " +
+           "LOWER(s.name) LIKE LOWER(CONCAT('%', :q, '%')) OR " +
+           "s.mobileNumber LIKE CONCAT('%', :q, '%')")
+    java.util.List<Student> searchStudents(@org.springframework.data.repository.query.Param("q") String q, org.springframework.data.domain.Pageable pageable);
 }

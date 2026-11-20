@@ -41,11 +41,13 @@ public class SecurityConfig {
             .csrf(csrf -> csrf.disable())
             .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(auth -> auth
-                // Static web resources
-                .requestMatchers("/", "/index.html", "/assets/**", "/favicon.ico", "/*.svg", "/*.png", "/*.ico").permitAll()
+                .dispatcherTypeMatchers(jakarta.servlet.DispatcherType.FORWARD, jakarta.servlet.DispatcherType.ERROR).permitAll()
+                // Static web resources & SPA routes
+                .requestMatchers("/", "/index.html", "/dev-portal", "/dev-portal/**", "/admin-portal", "/admin-portal/**", "/assets/**", "/favicon.ico", "/*.svg", "/*.png", "/*.ico").permitAll()
 
                 // Public authentication and payment callback endpoints
                 .requestMatchers("/api/v1/auth/**").permitAll()
+                .requestMatchers("/api/v1/dev-portal/login").permitAll()
                 .requestMatchers("/api/v1/payments/webhook").permitAll()
                 .requestMatchers("/api/v1/payments/config").permitAll()
                 
@@ -68,6 +70,7 @@ public class SecurityConfig {
                 .requestMatchers("/api/v1/merchants/**").hasAnyRole("MERCHANT_ADMIN", "FINANCE_ADMIN", "SUPER_ADMIN")
 
                 // Administrative, Reports, Auditing & Application Management
+                .requestMatchers("/api/v1/admin/**").hasAnyRole("SUPER_ADMIN", "FINANCE_ADMIN")
                 .requestMatchers(HttpMethod.GET, "/api/v1/applications/**").authenticated()
                 .requestMatchers("/api/v1/applications/**").hasAnyRole("SUPER_ADMIN", "APP_DEVELOPER")
                 .requestMatchers("/api/v1/reports/**", "/api/v1/reconciliation/**", "/api/v1/audit/**", "/api/v1/ledger/**").hasAnyRole("SUPER_ADMIN", "FINANCE_ADMIN")

@@ -84,7 +84,7 @@ public class WalletController {
         }
 
         if (effectiveId == null || effectiveId.isBlank()) {
-            effectiveId = "RIT2026001";
+            return ResponseEntity.badRequest().body(Map.of("error", "student_id or phone parameter required"));
         }
 
         final String finalId = effectiveId;
@@ -134,7 +134,7 @@ public class WalletController {
         }
 
         if (effectiveId == null || effectiveId.isBlank()) {
-            effectiveId = "RIT2026001";
+            return ResponseEntity.badRequest().body(Map.of("error", "student_id or phone parameter required"));
         }
 
         Page<WalletTransaction> txns = transactionRepository.findByStudentIdOrderByCreatedAtDesc(
@@ -189,7 +189,7 @@ public class WalletController {
         }
 
         if (studentId == null || studentId.isBlank()) {
-            studentId = "RIT2026001";
+            return ResponseEntity.badRequest().body(Map.of("error", "student_id or phone parameter required"));
         }
 
         RechargeOrder order = rechargeService.createRechargeOrder(studentId, amountRupees);

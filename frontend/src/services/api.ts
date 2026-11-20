@@ -12,7 +12,7 @@ export class ApiError extends Error {
 }
 
 async function request<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
-  const token = localStorage.getItem('ritz_token');
+  const token = localStorage.getItem('ritz_dev_token') || localStorage.getItem('ritz_token');
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
     ...(options.headers as Record<string, string> || {}),
@@ -118,6 +118,7 @@ export const api = {
     request<any>(`/api/v1/merchants/settlements/${settlementId}/complete`, { method: 'POST', body: JSON.stringify({ bank_reference: bankReference }) }),
 
   // Applications (Developer Portal)
+  loginDevPortal: (password: string) => request<any>('/api/v1/dev-portal/login', { method: 'POST', body: JSON.stringify({ password }) }),
   getApplications: () => request<any>('/api/v1/applications'),
   getApplication: (id: string) => request<any>(`/api/v1/applications/${id}`),
   registerApplication: (data: any) => request<any>('/api/v1/applications', { method: 'POST', body: JSON.stringify(data) }),

@@ -31,10 +31,19 @@ export const LoginPage: React.FC = () => {
             Open your campus app (e.g. Tillo Canteen) and click <strong>"RITZ Wallet / Top-up"</strong>. You will be authenticated automatically with your active student profile.
           </div>
 
-          <div className="mt-5 pt-4 border-t border-stone-100 dark:border-zinc-800/80">
-            <span className="text-[10px] text-stone-400 dark:text-zinc-500">
-              Institutional double-entry ledger protection
-            </span>
+          <div className="mt-5 pt-4 border-t border-stone-100 dark:border-zinc-800/80 flex items-center justify-between text-[11px]">
+            <a
+              href="/admin-portal"
+              className="text-stone-400 dark:text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300"
+            >
+              Admin Console →
+            </a>
+            <a
+              href="/dev-portal"
+              className="font-medium text-zinc-900 dark:text-zinc-200 hover:underline"
+            >
+              Developer Portal →
+            </a>
           </div>
 
         </div>

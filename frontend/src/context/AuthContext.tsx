@@ -158,8 +158,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     let p = '';
     switch (role) {
       case 'STUDENT':
-        u = 'RIT2026001';
-        p = 'StudentPass2026!';
+        u = '';
+        p = '';
         break;
       case 'SUPER_ADMIN':
         u = 'superadmin';
