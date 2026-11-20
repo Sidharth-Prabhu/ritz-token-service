@@ -3,8 +3,12 @@ package com.rit.token.ritz.admin;
 import com.rit.token.ritz.admin.dto.AdminDepositRequest;
 import com.rit.token.ritz.admin.dto.AdminDepositResponse;
 import com.rit.token.ritz.admin.dto.AdminStatsResponse;
+import com.rit.token.ritz.admin.dto.AdminUserDto;
 import com.rit.token.ritz.admin.dto.StudentSearchResult;
 import com.rit.token.ritz.audit.AuditService;
+import com.rit.token.ritz.auth.Role;
+import com.rit.token.ritz.auth.User;
+import com.rit.token.ritz.auth.UserRepository;
 import com.rit.token.ritz.ledger.AccountType;
 import com.rit.token.ritz.ledger.LedgerEntryRepository;
 import com.rit.token.ritz.ledger.LedgerService;
@@ -49,6 +53,7 @@ public class AdminService {
     private final NotificationService notificationService;
     private final AuditService auditService;
     private final WalletService walletService;
+    private final UserRepository userRepository;
 
     public AdminService(
             WalletRepository walletRepository,
@@ -60,7 +65,8 @@ public class AdminService {
             MerchantAccountRepository merchantAccountRepository,
             NotificationService notificationService,
             AuditService auditService,
-            WalletService walletService) {
+            WalletService walletService,
+            UserRepository userRepository) {
         this.walletRepository = walletRepository;
         this.studentRepository = studentRepository;
         this.transactionRepository = transactionRepository;
@@ -71,6 +77,7 @@ public class AdminService {
         this.notificationService = notificationService;
         this.auditService = auditService;
         this.walletService = walletService;
+        this.userRepository = userRepository;
     }
 
     /**
@@ -111,8 +118,8 @@ public class AdminService {
         stats.setVolumeLast24h(transactionRepository.getTotalVolumeSince(last24h));
         stats.setIssuedLast24h(transactionRepository.getIssuedVolumeSince(last24h));
 
-        // Top wallets
-        List<Wallet> topWalletsList = walletRepository.findTopWalletsByBalance(PageRequest.of(0, 5));
+        // Top wallets (return up to 50)
+        List<Wallet> topWalletsList = walletRepository.findTopWalletsByBalance(PageRequest.of(0, 50));
         List<Map<String, Object>> topWalletsData = new ArrayList<>();
         for (Wallet w : topWalletsList) {
             Map<String, Object> map = new HashMap<>();
@@ -356,5 +363,123 @@ public class AdminService {
             ));
         }
         return results;
+    }
+
+    /**
+     * Returns unified list of all users and students across the campus with wallet balances.
+     */
+    public Map<String, Object> getAllUsers(int page, int limit, String search, String roleFilter) {
+        int boundedLimit = Math.min(Math.max(limit, 1), 250);
+        int pageNum = Math.max(page, 0);
+
+        List<User> allUsers = userRepository.findAll(Sort.by("id").ascending());
+        List<Student> allStudents = studentRepository.findAll();
+        Map<String, Student> studentMapByStudentId = new HashMap<>();
+        Map<String, Student> studentMapByPhone = new HashMap<>();
+        for (Student s : allStudents) {
+            if (s.getStudentId() != null) studentMapByStudentId.put(s.getStudentId(), s);
+            if (s.getMobileNumber() != null) studentMapByPhone.put(s.getMobileNumber(), s);
+        }
+
+        List<Wallet> allWallets = walletRepository.findAll();
+        Map<String, Wallet> walletByStudentId = new HashMap<>();
+        for (Wallet w : allWallets) {
+            walletByStudentId.put(w.getStudentId(), w);
+        }
+
+        List<AdminUserDto> dtos = new ArrayList<>();
+        Set<String> processedStudentIds = new HashSet<>();
+
+        for (User u : allUsers) {
+            Student s = null;
+            if (u.getStudentId() != null) {
+                s = studentMapByStudentId.get(u.getStudentId());
+                processedStudentIds.add(u.getStudentId());
+            } else if (u.getUsername() != null && studentMapByPhone.containsKey(u.getUsername())) {
+                s = studentMapByPhone.get(u.getUsername());
+                processedStudentIds.add(s.getStudentId());
+            }
+
+            String studentId = u.getStudentId() != null ? u.getStudentId() : (s != null ? s.getStudentId() : null);
+            String fullName = (u.getFullName() != null && !u.getFullName().isBlank()) ? u.getFullName() : (s != null ? s.getName() : u.getUsername());
+            String mobile = s != null ? s.getMobileNumber() : (u.getUsername() != null && u.getUsername().matches("^\\d{10}$") ? u.getUsername() : null);
+            String email = u.getEmail() != null ? u.getEmail() : (s != null ? s.getEmail() : null);
+            String roleStr = u.getRole() != null ? u.getRole().name() : "STUDENT";
+
+            Wallet w = studentId != null ? walletByStudentId.get(studentId) : null;
+            String walletId = w != null ? w.getWalletId() : null;
+            Long balance = w != null ? w.getBalanceMinorUnits() : 0L;
+            String walletStatus = w != null ? w.getStatus().name() : (u.isActive() ? "ACTIVE" : "INACTIVE");
+
+            dtos.add(new AdminUserDto(
+                    u.getId(),
+                    u.getUsername(),
+                    studentId,
+                    fullName,
+                    mobile,
+                    email,
+                    roleStr,
+                    walletId,
+                    balance,
+                    walletStatus,
+                    u.getCreatedAt()
+            ));
+        }
+
+        for (Student s : allStudents) {
+            if (!processedStudentIds.contains(s.getStudentId())) {
+                Wallet w = walletByStudentId.get(s.getStudentId());
+                String walletId = w != null ? w.getWalletId() : null;
+                Long balance = w != null ? w.getBalanceMinorUnits() : 0L;
+                String walletStatus = w != null ? w.getStatus().name() : "ACTIVE";
+
+                dtos.add(new AdminUserDto(
+                        null,
+                        s.getMobileNumber(),
+                        s.getStudentId(),
+                        s.getName(),
+                        s.getMobileNumber(),
+                        s.getEmail(),
+                        "STUDENT",
+                        walletId,
+                        balance,
+                        walletStatus,
+                        s.getCreatedAt()
+                ));
+            }
+        }
+
+        if (roleFilter != null && !roleFilter.isBlank() && !roleFilter.equalsIgnoreCase("ALL")) {
+            String targetRole = roleFilter.trim().toUpperCase();
+            dtos.removeIf(dto -> dto.getRole() == null || !dto.getRole().equalsIgnoreCase(targetRole));
+        }
+
+        if (search != null && !search.isBlank()) {
+            String q = search.trim().toLowerCase();
+            dtos.removeIf(dto -> {
+                boolean matchName = dto.getFullName() != null && dto.getFullName().toLowerCase().contains(q);
+                boolean matchUsername = dto.getUsername() != null && dto.getUsername().toLowerCase().contains(q);
+                boolean matchStudentId = dto.getStudentId() != null && dto.getStudentId().toLowerCase().contains(q);
+                boolean matchMobile = dto.getMobileNumber() != null && dto.getMobileNumber().contains(q);
+                boolean matchEmail = dto.getEmail() != null && dto.getEmail().toLowerCase().contains(q);
+                boolean matchWalletId = dto.getWalletId() != null && dto.getWalletId().toLowerCase().contains(q);
+                return !matchName && !matchUsername && !matchStudentId && !matchMobile && !matchEmail && !matchWalletId;
+            });
+        }
+
+        int totalElements = dtos.size();
+        int totalPages = (int) Math.ceil((double) totalElements / boundedLimit);
+        int fromIndex = Math.min(pageNum * boundedLimit, totalElements);
+        int toIndex = Math.min(fromIndex + boundedLimit, totalElements);
+        List<AdminUserDto> pageContent = dtos.subList(fromIndex, toIndex);
+
+        Map<String, Object> result = new HashMap<>();
+        result.put("content", pageContent);
+        result.put("total_elements", totalElements);
+        result.put("total_pages", totalPages);
+        result.put("current_page", pageNum);
+        result.put("limit", boundedLimit);
+
+        return result;
     }
 }

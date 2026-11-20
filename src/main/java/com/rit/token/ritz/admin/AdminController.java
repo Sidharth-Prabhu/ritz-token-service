@@ -22,6 +22,7 @@ import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/v1/admin")
@@ -76,6 +77,16 @@ public class AdminController {
             @RequestParam(required = false) String q,
             @RequestParam(defaultValue = "15") int limit) {
         return ResponseEntity.ok(adminService.searchStudents(q, limit));
+    }
+
+    @GetMapping("/users")
+    @Operation(summary = "Get all users and students across the campus with wallet balances, role filters, search and pagination")
+    public ResponseEntity<Map<String, Object>> getUsers(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "25") int limit,
+            @RequestParam(required = false) String search,
+            @RequestParam(required = false) String role) {
+        return ResponseEntity.ok(adminService.getAllUsers(page, limit, search, role));
     }
 
     @GetMapping("/wallets")
